@@ -1,6 +1,8 @@
 import os.path
 from glob import glob
 
+from hashlib import md5
+
 import flask
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -23,10 +25,15 @@ from errors.InvalidUsage import InvalidUsage
 loaded_models = {}
 
 allowed_file = lambda filename: '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+get_md5 = lambda string: md5(string.encode('utf-8')).hexdigest()
 res_success = lambda msg: jsonify({ 'success': msg })
 
 # custom methods
+
+def get_path_parts(file_name_or_path, is_path = False):
+    base_name = os.path.basename(file_name_or_path) if is_path else file_name_or_path
+    pure_name, ext = os.path.splitext(base_name)
+    return pure_name, ext
 
 def save_and_get_input_file(files_dict):
     if DEFAULT_FILE_KEY not in files_dict:
@@ -38,13 +45,14 @@ def save_and_get_input_file(files_dict):
         raise InvalidUsage('No file selected!')
     elif file and allowed_file(file.filename):
         # construct the file name and path
-        filename = secure_filename(file.filename)
+        orig_filename = secure_filename(file.filename)
+        part_name, part_ext = get_path_parts(orig_filename)
+        filename = get_md5(part_name) + part_ext
         filepath = os.path.join(UPLOAD_FOLDER, filename)
-        filedir = os.path.dirname(filepath)
 
         # create the necessary directories (if applicable) and save the image
-        if not os.path.exists(filedir):
-            os.makedirs(filedir)
+        if not os.path.exists(UPLOAD_FOLDER):
+            os.makedirs(UPLOAD_FOLDER)
         file.save(filepath)
         return filepath
     else:
@@ -89,11 +97,10 @@ if __name__ == "__main__":
     print('Loading models...')
     for model_path in glob(MODELS_FOLDER):
         print(model_path)
-        model_name = os.path.basename(model_path)
-        model_name_pure, model_name_ext = os.path.splitext(model_name)
-        loaded_models[model_name_pure] = joblib.load(model_path)
+        model_name, _ = get_path_parts(model_path, True)
+        loaded_models[model_name] = joblib.load(model_path)
     print(f'{len(loaded_models)} models loaded.')
-    print(loaded_models)
+    print(list(loaded_models.keys()))
 
     app.run(
         host='0.0.0.0',
