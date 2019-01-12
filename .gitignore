@@ -103,5 +103,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# don't commit uploaded images
+# don't commit uploaded or scraped images, or any generated logs
 uploads/
+scraped_data/
+logs/

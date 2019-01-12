@@ -59,16 +59,6 @@ def save_and_get_input_file(files_dict):
     else:
         raise InvalidUsage('Invalid file provided!')
 
-# def predict_with_model(image_path, model_name):
-#     model = loaded_models.get(model_name)
-#     print(image_path)
-#     if model is not None:
-#         # TODO: implement classification
-#         return res_success('We got the image!')
-#     else:
-#         # this shouldn't happen at all
-#         raise InvalidUsage('The model file is not present!')
-
 # Flask methods
 
 @app.errorhandler(InvalidUsage)
@@ -91,10 +81,6 @@ def handle_unexpected_error(error):
     }
 
     return jsonify(response), status_code
-
-@app.route('/hello', methods=['GET'])
-def hello_world():
-    return res_success('hello world')
 
 @app.route('/predict-skin-mock', methods=['POST'])
 def predict_skin_mock():
@@ -127,20 +113,6 @@ def predict_skin():
     })
 
 if __name__ == "__main__":
-    # load all models into memory
-    # print('Loading models...')
-    # for (model_arch_path, model_weight_path) in zip(glob(MODEL_ARCHS_FOLDER), glob(MODEL_WEIGHTS_FOLDER)):
-    #     print(model_arch_path, model_weight_path)
-    #     model_name, _ = get_path_parts(model_arch_path, True)
-    #     with open(model_arch_path) as f:
-    #         model_arch = open(model_arch_path).read() #json.loads(f)
-    #         model = model_from_json(model_arch)
-    #         model.load_weights(model_weight_path)
-    #         loaded_models[model_name] = model
-
-    # print(f'{len(loaded_models)} models loaded.')
-    # print(list(loaded_models.keys()))
-
     app.run(
         host='0.0.0.0',
         port=8080,
