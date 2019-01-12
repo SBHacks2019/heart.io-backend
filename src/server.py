@@ -1,28 +1,27 @@
 import os.path
 from glob import glob
-
+import json
 from hashlib import md5
 
 import flask
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-# from werkzeug.contrib.cache import FileSystemCache
 from werkzeug.utils import secure_filename
 
+from errors.InvalidUsage import InvalidUsage
+from skin_img_processor import img_processor
+
 UPLOAD_FOLDER = '../uploads'
-MODELS_FOLDER = '../models/*.pkl'
+MODEL_ARCHS_FOLDER = '../models/archs/*.json'
+MODEL_WEIGHTS_FOLDER = '../models/weights/*.h5'
 ALLOWED_EXTENSIONS = set([ 'png', 'jpg', 'jpeg' ])
 DEFAULT_FILE_KEY = 'input'
 
 app = Flask(__name__)
 CORS(app)
 
-from sklearn.externals import joblib
-
-from errors.InvalidUsage import InvalidUsage
-
-loaded_models = {}
+# loaded_models = {}
 
 allowed_file = lambda filename: '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 get_md5 = lambda string: md5(string.encode('utf-8')).hexdigest()
@@ -50,23 +49,15 @@ def save_and_get_input_file(files_dict):
         filename = get_md5(part_name) + part_ext
         filepath = os.path.join(UPLOAD_FOLDER, filename)
 
-        # create the necessary directories (if applicable) and save the image
-        if not os.path.exists(UPLOAD_FOLDER):
-            os.makedirs(UPLOAD_FOLDER)
-        file.save(filepath)
+        if not os.path.isfile(filepath):
+            # create the necessary directories (if applicable) and save the image
+            if not os.path.exists(UPLOAD_FOLDER):
+                os.makedirs(UPLOAD_FOLDER)
+            file.save(filepath)
+
         return filepath
     else:
         raise InvalidUsage('Invalid file provided!')
-
-def predict_with_model(image_path, model_name):
-    model = loaded_models.get(model_name)
-    print(image_path)
-    if model is not None:
-        # TODO: implement classification
-        return res_success('We got the image!')
-    else:
-        # this shouldn't happen at all
-        raise InvalidUsage('The model file is not present!')
 
 # Flask methods
 
@@ -76,34 +67,55 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
-@app.route('/hello', methods=['GET'])
-def hello_world():
-    return res_success('hello world')
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    print(error)
+    status_code = 500
+    success = False
+    response = {
+        'success': success,
+        'error': {
+            'type': 'UnexpectedException',
+            'message': 'An unexpected error has occurred.'
+        }
+    }
 
-@app.route('/predict-mole', methods=['POST'])
-def predict_mole():
-    image_path = save_and_get_input_file(request.files)
-    results = predict_with_model(image_path, 'mole-model')
-    return results
+    return jsonify(response), status_code
 
-@app.route('/predict-chest', methods=['POST'])
-def predict_chest():
+@app.route('/predict-skin-mock', methods=['POST'])
+def predict_skin_mock():
     image_path = save_and_get_input_file(request.files)
-    results = predict_with_model(image_path, 'chest-model')
-    return results
+    return jsonify({
+        "labels": ['Diseases', 'a', 'b', 'c', 'd', 'e', 'f', 'g'],
+        "results": ['Probabilities', 1, 2, 3, 4, 5, 6, 7]
+    })
+
+@app.route('/predict-skin', methods=['POST'])
+def predict_skin():
+    image_path = save_and_get_input_file(request.files)
+    #results = predict_with_model(image_path, 'skin-model')
+    prediction_results = img_processor(
+        image_path,
+        meanstdpath="../ml/models/skin-model_meanstd.npy",
+        modelpath="../ml/archs/skin-model.json",
+        weightspath="../ml/weights/skin-model.h5"
+    )
+
+    labels = list(prediction_results.keys())
+    results = list(prediction_results.values())
+    new_results = [round(val, 7) * 100 for val in results]
+
+    print(prediction_results)
+
+    return jsonify({
+        "labels": ['Diseases', *labels],
+        "results": ['Results', *new_results]
+    })
 
 if __name__ == "__main__":
-    # load all models into memory
-    print('Loading models...')
-    for model_path in glob(MODELS_FOLDER):
-        print(model_path)
-        model_name, _ = get_path_parts(model_path, True)
-        loaded_models[model_name] = joblib.load(model_path)
-    print(f'{len(loaded_models)} models loaded.')
-    print(list(loaded_models.keys()))
-
     app.run(
         host='0.0.0.0',
         port=8080,
-        debug=True
+        debug=True,
+        threaded=False
     )
