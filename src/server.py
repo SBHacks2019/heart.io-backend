@@ -50,10 +50,12 @@ def save_and_get_input_file(files_dict):
         filename = get_md5(part_name) + part_ext
         filepath = os.path.join(UPLOAD_FOLDER, filename)
 
-        # create the necessary directories (if applicable) and save the image
-        if not os.path.exists(UPLOAD_FOLDER):
-            os.makedirs(UPLOAD_FOLDER)
-        file.save(filepath)
+        if not os.path.isfile(filepath):
+            # create the necessary directories (if applicable) and save the image
+            if not os.path.exists(UPLOAD_FOLDER):
+                os.makedirs(UPLOAD_FOLDER)
+            file.save(filepath)
+
         return filepath
     else:
         raise InvalidUsage('Invalid file provided!')
