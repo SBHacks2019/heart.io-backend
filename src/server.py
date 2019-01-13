@@ -3,9 +3,6 @@ from glob import glob
 import json
 from hashlib import md5
 
-from dotenv import load_dotenv
-load_dotenv()
-
 import flask
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -13,21 +10,11 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from errors.InvalidUsage import InvalidUsage
-from skin_classifier import img_processor, img_processor_online
+from utils.skin_classifier import img_processor_online
 
-UPLOAD_FOLDER = '../uploads'
+UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = set([ 'png', 'jpg', 'jpeg' ])
 DEFAULT_FILE_KEY = 'input'
-
-DEFAULT_MODEL_FILE = os.environ.get('MODEL_PATH')
-DEFAULT_WEIGHTS_FILE = os.environ.get('WEIGHTS_PATH')
-DEFAULT_TF_EXPORT_PATH = os.environ.get('TF_MODEL_EXPORT_PATH')
-
-DEFAULT_MEANSTD_PATH = os.environ.get('MEANSTD_PATH')
-
-GCP_PROJECT_NAME = os.environ.get('GCP_PROJECT_NAME')
-ML_ENGINE_MODEL_NAME = os.environ.get('ML_ENGINE_MODEL_NAME')
-ML_ENGINE_MODEL_VERSION = os.environ.get('ML_ENGINE_MODEL_VERSION')
 
 app = Flask(__name__)
 CORS(app)
@@ -81,10 +68,10 @@ def predict_skin():
     image_path = save_and_get_input_file(request.files)
     prediction_results = img_processor_online(
         image_path,
-        meanstdpath=DEFAULT_MEANSTD_PATH,
-        project=GCP_PROJECT_NAME,
-        model=ML_ENGINE_MODEL_NAME,
-        version=ML_ENGINE_MODEL_VERSION
+        meanstdpath='../ml-data/keras-files/skin-model_meanstd.npy',
+        project='project-2b1s',
+        model='skin_disease_detection',
+        version='demo'
     )
 
     labels = list(prediction_results.keys())
