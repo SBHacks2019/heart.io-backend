@@ -5,6 +5,13 @@ import tensorflow as tf
 import os
 from shutil import rmtree
 
+from dotenv import load_dotenv
+load_dotenv()
+
+DEFAULT_MODEL_FILE = os.environ.get('MODEL_PATH')
+DEFAULT_WEIGHTS_FILE = os.environ.get('WEIGHTS_PATH')
+DEFAULT_TF_EXPORT_PATH = os.environ.get('TF_MODEL_EXPORT_PATH')
+
 def convert_for_tf(modelpath, weightspath, export_path, clear_converted=False):
     K.set_learning_phase(0)
 
@@ -28,3 +35,13 @@ def convert_for_tf(modelpath, weightspath, export_path, clear_converted=False):
             inputs={ 'input_image_bytes': model.input },
             outputs={ t.name: t for t in model.outputs }
         )
+
+if __name__ == "__main__":
+    print('Converting Keras model for use with Tensorflow...')
+    convert_for_tf(
+        modelpath=DEFAULT_MODEL_FILE,
+        weightspath=DEFAULT_WEIGHTS_FILE,
+        export_path=DEFAULT_TF_EXPORT_PATH,
+        clear_converted=True
+    )
+    print('Done!')

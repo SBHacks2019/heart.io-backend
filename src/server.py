@@ -14,7 +14,6 @@ from werkzeug.utils import secure_filename
 
 from errors.InvalidUsage import InvalidUsage
 from skin_classifier import img_processor, img_processor_online
-from utils import convert_for_tf
 
 UPLOAD_FOLDER = '../uploads'
 ALLOWED_EXTENSIONS = set([ 'png', 'jpg', 'jpeg' ])
@@ -23,6 +22,7 @@ DEFAULT_FILE_KEY = 'input'
 DEFAULT_MODEL_FILE = os.environ.get('MODEL_PATH')
 DEFAULT_WEIGHTS_FILE = os.environ.get('WEIGHTS_PATH')
 DEFAULT_TF_EXPORT_PATH = os.environ.get('TF_MODEL_EXPORT_PATH')
+
 DEFAULT_MEANSTD_PATH = os.environ.get('MEANSTD_PATH')
 
 GCP_PROJECT_NAME = os.environ.get('GCP_PROJECT_NAME')
@@ -75,29 +75,6 @@ def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
-
-@app.route('/test', methods=['GET'])
-def test_server():
-    return jsonify({ 'hello': 'world' })
-
-@app.route('/predict-skin-mock', methods=['POST'])
-def predict_skin_mock():
-    image_path = save_and_get_input_file(request.files)
-    return jsonify({
-        "labels": ['Diseases', 'a', 'b', 'c', 'd', 'e', 'f', 'g'],
-        "results": ['Probabilities', 1, 2, 3, 4, 5, 6, 7]
-    })
-
-@app.route('/convert-model', methods=['GET'])
-def convert_model_to_tf():
-    convert_for_tf(
-        modelpath=DEFAULT_MODEL_FILE,
-        weightspath=DEFAULT_WEIGHTS_FILE,
-        export_path=DEFAULT_TF_EXPORT_PATH,
-        clear_converted=True
-    )
-
-    return jsonify({ 'message': 'success' })
 
 @app.route('/predict-skin', methods=['POST'])
 def predict_skin():
