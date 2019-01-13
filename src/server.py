@@ -3,6 +3,11 @@ from glob import glob
 import json
 from hashlib import md5
 
+from io import BytesIO
+
+# from PIL import Image
+# import numpy as np
+
 import flask
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -10,7 +15,7 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from errors.InvalidUsage import InvalidUsage
-from utils.skin_classifier import img_processor_online
+from utils.skin_classifier import img_processor, img_processor_online
 
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = set([ 'png', 'jpg', 'jpeg' ])
@@ -25,37 +30,20 @@ res_success = lambda msg: jsonify({ 'success': msg })
 
 # custom methods
 
-def get_path_parts(file_name_or_path, is_path = False):
-    base_name = os.path.basename(file_name_or_path) if is_path else file_name_or_path
-    pure_name, ext = os.path.splitext(base_name)
-    return pure_name, ext
-
-def save_and_get_input_file(files_dict):
+def get_input_file_content(files_dict):
     if DEFAULT_FILE_KEY not in files_dict:
         raise InvalidUsage('No file detected!')
 
-    file = request.files[DEFAULT_FILE_KEY]
+    file = files_dict[DEFAULT_FILE_KEY]
 
     if file.filename == '':
         raise InvalidUsage('No file selected!')
-    elif file and allowed_file(file.filename):
-        # construct the file name and path
-        orig_filename = secure_filename(file.filename)
-        part_name, part_ext = get_path_parts(orig_filename)
-        filename = get_md5(part_name) + part_ext
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
 
-        if not os.path.isfile(filepath):
-            # create the necessary directories (if applicable) and save the image
-            if not os.path.exists(UPLOAD_FOLDER):
-                os.makedirs(UPLOAD_FOLDER)
-            file.save(filepath)
-
-        return filepath
-    else:
-        raise InvalidUsage('Invalid file provided!')
+    return file.read()
 
 # Flask methods
+
+going_online = True
 
 @app.errorhandler(InvalidUsage)
 def handle_invalid_usage(error):
@@ -65,14 +53,24 @@ def handle_invalid_usage(error):
 
 @app.route('/predict-skin', methods=['POST'])
 def predict_skin():
-    image_path = save_and_get_input_file(request.files)
-    prediction_results = img_processor_online(
-        image_path,
-        meanstdpath='../ml-data/keras-files/skin-model_meanstd.npy',
-        project='project-2b1s',
-        model='skin_disease_detection',
-        version='demo'
-    )
+    img_content = get_input_file_content(request.files)
+
+    prediction_results = None
+    if going_online:
+        prediction_results = img_processor_online(
+            img_content,
+            meanstdpath='../ml-data/keras-files/skin-model_meanstd.npy',
+            project='project-2b1s',
+            model='skin_disease_detection',
+            version='final'
+        )
+    else:
+        prediction_results = img_processor(
+            img_content,
+            meanstdpath='../ml-data/keras-files/skin-model_meanstd.npy',
+            modelpath='../ml-data/keras-files/skin-model.json',
+            weightspath='../ml-data/keras-files/skin-model.h5'
+        )
 
     labels = list(prediction_results.keys())
     results = list(prediction_results.values())

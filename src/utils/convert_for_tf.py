@@ -1,5 +1,6 @@
 from keras.models import model_from_json
 from keras import backend as K
+import keras
 import tensorflow as tf
 
 import os
@@ -18,10 +19,7 @@ def convert_for_tf(modelpath, weightspath, export_path, clear_converted=False):
     if clear_converted and os.path.exists(export_path):
         rmtree(export_path)
 
-    init = tf.global_variables_initializer()
-
-    with tf.keras.backend.get_session() as sess:
-        sess.run(init)
+    with K.get_session() as sess:
         tf.saved_model.simple_save(
             sess,
             export_path,

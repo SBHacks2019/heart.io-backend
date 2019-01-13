@@ -1,12 +1,15 @@
+from io import BytesIO
 from PIL import Image
+
 import numpy as np
 from keras.models import model_from_json
 
 import googleapiclient.discovery
 
 import base64
-
+import time
 import os
+
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'google-project-creds.json'
 
 def load_model(modelpath, weightspath):
@@ -19,18 +22,18 @@ def load_model(modelpath, weightspath):
 
     return skinmodel
 
-def load_img(imgpath, meanstdpath):
+def load_img(img_content, meanstdpath):
     # Load mean and std
     train_X_mean, train_X_std = np.load(meanstdpath)
 
     # Loading, resizing image as np.array
-    imagearray = np.asarray(Image.open(imgpath).resize((100, 75)))
+    imagearray = np.asarray(Image.open(BytesIO(img_content)).resize((100, 75)))
     imagearray = ((imagearray - train_X_mean) / train_X_std)
 
     return imagearray
 
-def img_processor(imgpath, meanstdpath, modelpath, weightspath):
-    imagearray = load_img(imgpath, meanstdpath)
+def img_processor(img_content, meanstdpath, modelpath, weightspath):
+    imagearray = load_img(img_content, meanstdpath)
     skinmodel = load_model(modelpath, weightspath)
     pred_vec = skinmodel.predict(imagearray).flatten().tolist()
 
@@ -46,16 +49,21 @@ def img_processor(imgpath, meanstdpath, modelpath, weightspath):
 
     return pred_dict
 
-def img_processor_online(imgpath, meanstdpath, project, model, version=None):
-    imagearray = load_img(imgpath, meanstdpath)
+def img_processor_online(img_content, meanstdpath, project, model, version=None):
+    imagearray = load_img(img_content, meanstdpath)
     service = googleapiclient.discovery.build('ml', 'v1')
     name = f'projects/{project}/models/{model}'
 
     if version is not None:
         name += f'/versions/{version}'
 
+    start_time = time.time()
     response = service.projects().predict(name=name, body={'instances': { 'input_image_bytes': imagearray.tolist() }}).execute()
-    pred_vec = response['predictions'][0]['dense_4/Softmax:0']
+    end_time = time.time()
+
+    print(f'Inference took {end_time - start_time} seconds.')
+
+    pred_vec = response['predictions'][0]['dense_2/Softmax:0']
 
     pred_dict = {
         'Actinic keratoses' : pred_vec[0],
