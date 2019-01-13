@@ -25,6 +25,10 @@ DEFAULT_WEIGHTS_FILE = os.environ.get('WEIGHTS_PATH')
 DEFAULT_TF_EXPORT_PATH = os.environ.get('TF_MODEL_EXPORT_PATH')
 DEFAULT_MEANSTD_PATH = os.environ.get('MEANSTD_PATH')
 
+GCP_PROJECT_NAME = os.environ.get('GCP_PROJECT_NAME')
+ML_ENGINE_MODEL_NAME = os.environ.get('ML_ENGINE_MODEL_NAME')
+ML_ENGINE_MODEL_VERSION = os.environ.get('ML_ENGINE_MODEL_VERSION')
+
 app = Flask(__name__)
 CORS(app)
 
@@ -93,19 +97,17 @@ def convert_model_to_tf():
         clear_converted=True
     )
 
-    return jsonify({
-        'message': 'success'
-    })
+    return jsonify({ 'message': 'success' })
 
 @app.route('/predict-skin', methods=['POST'])
 def predict_skin():
     image_path = save_and_get_input_file(request.files)
-    #results = predict_with_model(image_path, 'skin-model')
-    prediction_results = img_processor(
+    prediction_results = img_processor_online(
         image_path,
         meanstdpath=DEFAULT_MEANSTD_PATH,
-        modelpath=DEFAULT_MODEL_FILE,
-        weightspath=DEFAULT_WEIGHTS_FILE
+        project=GCP_PROJECT_NAME,
+        model=ML_ENGINE_MODEL_NAME,
+        version=ML_ENGINE_MODEL_VERSION
     )
 
     labels = list(prediction_results.keys())
