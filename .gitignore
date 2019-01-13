@@ -103,7 +103,13 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# vscode
+.vscode
+
 # don't commit uploaded or scraped images, or any generated logs
 uploads/
-scraped_data/
+google_scraped_data/
 logs/
+
+# secret GCP credentials
+google-project-creds.json

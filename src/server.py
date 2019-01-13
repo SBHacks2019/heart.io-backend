@@ -3,6 +3,9 @@ from glob import glob
 import json
 from hashlib import md5
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import flask
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -10,18 +13,20 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from errors.InvalidUsage import InvalidUsage
-from skin_img_processor import img_processor
+from skin_classifier import img_processor, img_processor_online
+from utils import convert_for_tf
 
 UPLOAD_FOLDER = '../uploads'
-MODEL_ARCHS_FOLDER = '../models/archs/*.json'
-MODEL_WEIGHTS_FOLDER = '../models/weights/*.h5'
 ALLOWED_EXTENSIONS = set([ 'png', 'jpg', 'jpeg' ])
 DEFAULT_FILE_KEY = 'input'
 
+DEFAULT_MODEL_FILE = os.environ.get('MODEL_PATH')
+DEFAULT_WEIGHTS_FILE = os.environ.get('WEIGHTS_PATH')
+DEFAULT_TF_EXPORT_PATH = os.environ.get('TF_MODEL_EXPORT_PATH')
+DEFAULT_MEANSTD_PATH = os.environ.get('MEANSTD_PATH')
+
 app = Flask(__name__)
 CORS(app)
-
-# loaded_models = {}
 
 allowed_file = lambda filename: '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 get_md5 = lambda string: md5(string.encode('utf-8')).hexdigest()
@@ -67,20 +72,9 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
-@app.errorhandler(Exception)
-def handle_unexpected_error(error):
-    print(error)
-    status_code = 500
-    success = False
-    response = {
-        'success': success,
-        'error': {
-            'type': 'UnexpectedException',
-            'message': 'An unexpected error has occurred.'
-        }
-    }
-
-    return jsonify(response), status_code
+@app.route('/test', methods=['GET'])
+def test_server():
+    return jsonify({ 'hello': 'world' })
 
 @app.route('/predict-skin-mock', methods=['POST'])
 def predict_skin_mock():
@@ -90,20 +84,33 @@ def predict_skin_mock():
         "results": ['Probabilities', 1, 2, 3, 4, 5, 6, 7]
     })
 
+@app.route('/convert-model', methods=['GET'])
+def convert_model_to_tf():
+    convert_for_tf(
+        modelpath=DEFAULT_MODEL_FILE,
+        weightspath=DEFAULT_WEIGHTS_FILE,
+        export_path=DEFAULT_TF_EXPORT_PATH,
+        clear_converted=True
+    )
+
+    return jsonify({
+        'message': 'success'
+    })
+
 @app.route('/predict-skin', methods=['POST'])
 def predict_skin():
     image_path = save_and_get_input_file(request.files)
     #results = predict_with_model(image_path, 'skin-model')
     prediction_results = img_processor(
         image_path,
-        meanstdpath="../ml/models/skin-model_meanstd.npy",
-        modelpath="../ml/archs/skin-model.json",
-        weightspath="../ml/weights/skin-model.h5"
+        meanstdpath=DEFAULT_MEANSTD_PATH,
+        modelpath=DEFAULT_MODEL_FILE,
+        weightspath=DEFAULT_WEIGHTS_FILE
     )
 
     labels = list(prediction_results.keys())
     results = list(prediction_results.values())
-    new_results = [round(val, 7) * 100 for val in results]
+    new_results = [round(val, 6) * 100 for val in results]
 
     print(prediction_results)
 
@@ -117,5 +124,6 @@ if __name__ == "__main__":
         host='0.0.0.0',
         port=8080,
         debug=True,
-        threaded=False
+        threaded=False,
+        use_reloader=False
     )
