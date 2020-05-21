@@ -58,7 +58,7 @@ It sometimes takes one gentle push for a person to change their lifestyle for th
 
 ## Contributors
 - [sdulaney](https://github.com/sdulaney)
-- [otsen](https://github.com/otsen)
+- [oshtontsen](https://github.com/oshtontsen)
 - [tejashah88](https://github.com/tejashah88)
 - [edmondnemsingh](https://github.com/edmondnemsingh)
 - [ohadmich](https://github.com/ohadmich)
